@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuickChart — 免费在线图表制作工具</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+  * { font-family: 'Noto Sans SC', sans-serif; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+  .dark-mode { background: #1e1e2e !important; color: #cdd6f4 !important; }
+  .dark-mode .bg-white { background: #2a2a3c !important; }
+  .dark-mode .bg-gray-50 { background: #1e1e2e !important; }
+  .dark-mode .bg-gray-100 { background: #2a2a3c !important; }
+  .dark-mode .text-gray-800 { color: #cdd6f4 !important; }
+  .dark-mode .text-gray-700 { color: #bac2de !important; }
+  .dark-mode .text-gray-600 { color: #a6adc8 !important; }
+  .dark-mode .text-gray-500 { color: #a6adc8 !important; }
+  .dark-mode .text-gray-400 { color: #7f849c !important; }
+  .dark-mode .border-gray-200 { border-color: #45475a !important; }
+  .dark-mode .border-gray-300 { border-color: #45475a !important; }
+  .dark-mode input, .dark-mode select, .dark-mode textarea {
+    background: #313244 !important; color: #cdd6f4 !important; border-color: #45475a !important;
+  }
+  .chart-type-btn { transition: all 0.2s ease; }
+  .chart-type-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .chart-type-btn.active { ring: 2px; box-shadow: 0 0 0 2px #3b82f6, 0 4px 12px rgba(59,130,246,0.3); }
+  .theme-dot { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; transition: transform 0.2s; border: 2px solid transparent; }
+  .theme-dot:hover { transform: scale(1.2); }
+  .theme-dot.active { border-color: #1e293b; box-shadow: 0 0 0 2px white, 0 0 0 4px #3b82f6; }
+  .export-btn { transition: all 0.2s ease; }
+  .export-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+  .data-table { border-collapse: collapse; width: 100%; }
+  .data-table th, .data-table td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: center; font-size: 13px; }
+  .data-table th { background: #f1f5f9; font-weight: 600; color: #475569; }
+  .data-table input { width: 100%; border: none; outline: none; background: transparent; text-align: center; font-size: 13px; padding: 2px; }
+  .data-table input:focus { background: #eff6ff; border-radius: 4px; }
+  .tab-btn { transition: all 0.15s ease; }
+  .tab-btn.active { background: #3b82f6; color: white; }
+  .panel-section { border-bottom: 1px solid #e2e8f0; padding: 16px; }
+  .panel-section:last-child { border-bottom: none; }
+  .panel-label { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .toggle-switch { position: relative; width: 40px; height: 22px; background: #cbd5e1; border-radius: 11px; cursor: pointer; transition: background 0.3s; }
+  .toggle-switch.active { background: #3b82f6; }
+  .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: transform 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  .toggle-switch.active::after { transform: translateX(18px); }
+  #chartCanvas { max-width: 100%; }
+</style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+<!-- Header -->
+<header class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
+  <div class="max-w-[1800px] mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="text-2xl">📊</div>
+      <div>
+        <h1 class="text-lg font-bold text-gray-800 leading-tight">QuickChart</h1>
+        <p class="text-xs text-gray-400">免费在线图表制作工具</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button onclick="resetAll()" class="text-sm text-gray-500 hover:text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50 transition">
+        🔄 重置
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="max-w-[1800px] mx-auto flex" style="height: calc(100vh - 60px);">
+  <!-- Left Panel: Data Input -->
+  <div class="w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+    <!-- Data Input Tabs -->
+    <div class="flex border-b border-gray-200">
+      <button class="tab-btn active flex-1 py-2.5 text-sm font-medium text-gray-600" onclick="switchDataTab('table')" id="tabTable">📋 表格输入</button>
+      <button class="tab-btn flex-1 py-2.5 text-sm font-medium text-gray-600" onclick="switchDataTab('csv')" id="tabCsv">📝 CSV粘贴</button>
+    </div>
+
+    <!-- Table Input -->
+    <div id="tablePanel" class="flex-1 overflow-auto p-3">
+      <div class="flex gap-2 mb-3">
+        <button onclick="addRow()" class="flex-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 py-1.5 rounded-lg font-medium transition">+ 添加行</button>
+        <button onclick="addCol()" class="flex-1 text-xs bg-green-50 text-green-600 hover:bg-green-100 py-1.5 rounded-lg font-medium transition">+ 添加列</button>
+      </div>
+      <div class="flex gap-2 mb-3">
+        <button onclick="removeRow()" class="flex-1 text-xs bg-red-50 text-red-500 hover:bg-red-100 py-1.5 rounded-lg font-medium transition">- 删除行</button>
+        <button onclick="removeCol()" class="flex-1 text-xs bg-orange-50 text-orange-500 hover:bg-orange-100 py-1.5 rounded-lg font-medium transition">- 删除列</button>
+      </div>
+      <div id="tableContainer" class="overflow-auto"></div>
+      <div class="mt-3">
+        <button onclick="loadSampleData()" class="w-full text-xs bg-purple-50 text-purple-600 hover:bg-purple-100 py-2 rounded-lg font-medium transition">📌 加载示例数据</button>
+      </div>
+    </div>
+
+    <!-- CSV Input -->
+    <div id="csvPanel" class="flex-1 overflow-auto p-3 hidden">
+      <p class="text-xs text-gray-500 mb-2">粘贴Excel或CSV数据（第一行为类别，其余行为数据系列）：</p>
+      <textarea id="csvInput" class="w-full h-64 border border-gray-300 rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none resize-none" placeholder="类别,系列1,系列2&#10;一月,120,80&#10;二月,150,90&#10;三月,180,120"></textarea>
+      <button onclick="parseCSV()" class="w-full mt-3 bg-blue-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition">✅ 解析数据</button>
+    </div>
+  </div>
+
+  <!-- Center: Chart Preview -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <!-- Chart Type Bar -->
+    <div class="bg-white border-b border-gray-200 px-4 py-3">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-xs font-semibold text-gray-500 mr-1">图表类型：</span>
+        <button class="chart-type-btn active px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white" data-type="bar" onclick="setChartType('bar')">📊 柱状图</button>
+        <button class="chart-type-btn px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white" data-type="line" onclick="setChartType('line')">📈 折线图</button>
+        <button class="chart-type-btn px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white" data-type="pie" onclick="setChartType('pie')">🍕 饼图</button>
+        <button class="chart-type-btn px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white" data-type="doughnut" onclick="setChartType('doughnut')">🍩 环形图</button>
+        <button class="chart-type-btn px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white" data-type="area" onclick="setChartType('area')">📉 面积图</button>
+        <button class="chart-type-btn px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white" data-type="radar" onclick="setChartType('radar')">🎯 雷达图</button>
+        <button class="chart-type-btn px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white" data-type="horizontalBar" onclick="setChartType('horizontalBar')">📊 条形图</button>
+      </div>
+    </div>
+
+    <!-- Theme Bar -->
+    <div class="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center gap-3">
+      <span class="text-xs font-semibold text-gray-500">配色主题：</span>
+      <div class="flex items-center gap-2">
+        <div class="theme-dot active" data-theme="blue" onclick="setTheme('blue')" style="background: linear-gradient(135deg, #3b82f6, #60a5fa)" title="清新蓝"></div>
+        <div class="theme-dot" data-theme="red" onclick="setTheme('red')" style="background: linear-gradient(135deg, #ef4444, #f87171)" title="暖红"></div>
+        <div class="theme-dot" data-theme="purple" onclick="setTheme('purple')" style="background: linear-gradient(135deg, #8b5cf6, #a78bfa)" title="雅紫"></div>
+        <div class="theme-dot" data-theme="green" onclick="setTheme('green')" style="background: linear-gradient(135deg, #10b981, #34d399)" title="森林绿"></div>
+        <div class="theme-dot" data-theme="orange" onclick="setTheme('orange')" style="background: linear-gradient(135deg, #f59e0b, #fbbf24)" title="日落橙"></div>
+        <div class="theme-dot" data-theme="dark" onclick="setTheme('dark')" style="background: linear-gradient(135deg, #334155, #64748b)" title="暗黑"></div>
+      </div>
+      <span class="text-xs text-gray-400" id="themeName">清新蓝</span>
+    </div>
+
+    <!-- Chart Canvas Area -->
+    <div class="flex-1 flex items-center justify-center p-6 bg-gray-50" id="chartArea">
+      <div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-3xl" id="chartCard">
+        <canvas id="chartCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Export Bar -->
+    <div class="bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-center gap-4">
+      <button onclick="exportPNG()" class="export-btn bg-blue-500 text-white px-6 py-2 rounded-xl text-sm font-medium flex items-center gap-2">
+        📥 导出 PNG（高清）
+      </button>
+      <button onclick="exportSVG()" class="export-btn bg-gray-700 text-white px-6 py-2 rounded-xl text-sm font-medium flex items-center gap-2">
+        📥 导出 SVG
+      </button>
+    </div>
+  </div>
+
+  <!-- Right Panel: Customization -->
+  <div class="w-72 bg-white border-l border-gray-200 overflow-y-auto flex-shrink-0">
+    <div class="panel-section">
+      <div class="panel-label">标题设置</div>
+      <input type="text" id="chartTitle" value="数据图表" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none" oninput="updateChart()">
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">X轴标签</div>
+      <input type="text" id="xAxisLabel" value="" placeholder="X轴名称" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none" oninput="updateChart()">
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Y轴标签</div>
+      <input type="text" id="yAxisLabel" value="" placeholder="Y轴名称" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none" oninput="updateChart()">
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">图例位置</div>
+      <select id="legendPos" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none" onchange="updateChart()">
+        <option value="top">顶部</option>
+        <option value="bottom">底部</option>
+        <option value="left">左侧</option>
+        <option value="right">右侧</option>
+        <option value="none">不显示</option>
+      </select>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">字体大小</div>
+      <div class="flex items-center gap-3">
+        <input type="range" id="fontSize" min="10" max="24" value="14" class="flex-1" oninput="updateChart()">
+        <span class="text-sm text-gray-600 w-8 text-right" id="fontSizeVal">14</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="flex items-center justify-between">
+        <span class="panel-label mb-0">显示数值</span>
+        <div class="toggle-switch" id="toggleValues" onclick="toggleSwitch('toggleValues');updateChart()"></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="flex items-center justify-between">
+        <span class="panel-label mb-0">显示网格线</span>
+        <div class="toggle-switch active" id="toggleGrid" onclick="toggleSwitch('toggleGrid');updateChart()"></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="flex items-center justify-between">
+        <span class="panel-label mb-0">平滑曲线（折线图）</span>
+        <div class="toggle-switch active" id="toggleSmooth" onclick="toggleSwitch('toggleSmooth');updateChart()"></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="flex items-center justify-between">
+        <span class="panel-label mb-0">填充背景色</span>
+        <div class="toggle-switch" id="toggleFill" onclick="toggleSwitch('toggleFill');updateChart()"></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">图表尺寸</div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-xs text-gray-400">宽度(px)</label>
+          <input type="number" id="chartWidth" value="800" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-300" onchange="resizeChart()">
+        </div>
+        <div>
+          <label class="text-xs text-gray-400">高度(px)</label>
+          <input type="number" id="chartHeight" value="500" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-300" onchange="resizeChart()">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ State ============
+let chartInstance = null;
+let currentType = 'bar';
+let currentTheme = 'blue';
+let tableData = {
+  headers: ['类别', '系列1', '系列2'],
+  rows: [
+    ['一月', '120', '80'],
+    ['二月', '150', '90'],
+    ['三月', '180', '120'],
+    ['四月', '130', '100'],
+    ['五月', '200', '150'],
+  ]
+};
+
+// ============ Themes ============
+const themes = {
+  blue: {
+    name: '清新蓝',
+    colors: ['#3b82f6','#60a5fa','#2563eb','#93c5fd','#1d4ed8','#bfdbfe','#1e40af','#dbeafe'],
+    bg: 'rgba(59,130,246,0.1)',
+    border: '#3b82f6'
+  },
+  red: {
+    name: '暖红',
+    colors: ['#ef4444','#f87171','#dc2626','#fca5a5','#b91c1c','#fecaca','#991b1b','#fee2e2'],
+    bg: 'rgba(239,68,68,0.1)',
+    border: '#ef4444'
+  },
+  purple: {
+    name: '雅紫',
+    colors: ['#8b5cf6','#a78bfa','#7c3aed','#c4b5fd','#6d28d9','#ddd6fe','#5b21b6','#ede9fe'],
+    bg: 'rgba(139,92,246,0.1)',
+    border: '#8b5cf6'
+  },
+  green: {
+    name: '森林绿',
+    colors: ['#10b981','#34d399','#059669','#6ee7b7','#047857','#a7f3d0','#065f46','#d1fae5'],
+    bg: 'rgba(16,185,129,0.1)',
+    border: '#10b981'
+  },
+  orange: {
+    name: '日落橙',
+    colors: ['#f59e0b','#fbbf24','#d97706','#fcd34d','#b45309','#fde68a','#92400e','#fef3c7'],
+    bg: 'rgba(245,158,11,0.1)',
+    border: '#f59e0b'
+  },
+  dark: {
+    name: '暗黑',
+    colors: ['#64748b','#94a3b8','#475569','#cbd5e1','#334155','#e2e8f0','#1e293b','#f1f5f9'],
+    bg: 'rgba(100,116,139,0.1)',
+    border: '#64748b'
+  }
+};
+
+// ============ Toggle Switch ============
+function toggleSwitch(id) {
+  document.getElementById(id).classList.toggle('active');
+}
+function isToggleActive(id) {
+  return document.getElementById(id).classList.contains('active');
+}
+
+// ============ Data Tab ============
+function switchDataTab(tab) {
+  document.getElementById('tabTable').classList.toggle('active', tab === 'table');
+  document.getElementById('tabCsv').classList.toggle('active', tab === 'csv');
+  document.getElementById('tablePanel').classList.toggle('hidden', tab !== 'table');
+  document.getElementById('csvPanel').classList.toggle('hidden', tab !== 'csv');
+}
+
+// ============ Table Rendering ============
+function renderTable() {
+  const c = document.getElementById('tableContainer');
+  let html = '<table class="data-table"><thead><tr>';
+  tableData.headers.forEach((h, i) => {
+    html += `<th><input value="${escHtml(h)}" onchange="tableData.headers[${i}]=this.value;updateChart()" style="font-weight:600;min-width:70px"></th>`;
+  });
+  html += '</tr></thead><tbody>';
+  tableData.rows.forEach((row, ri) => {
+    html += '<tr>';
+    row.forEach((cell, ci) => {
+      html += `<td><input value="${escHtml(cell)}" onchange="tableData.rows[${ri}][${ci}]=this.value;updateChart()" style="min-width:70px"></td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  c.innerHTML = html;
+}
+
+function escHtml(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+function addRow() {
+  const cols = tableData.headers.length;
+  tableData.rows.push(new Array(cols).fill('0'));
+  renderTable();
+  updateChart();
+}
+
+function addCol() {
+  const idx = tableData.headers.length + 1;
+  tableData.headers.push('系列' + idx);
+  tableData.rows.forEach(r => r.push('0'));
+  renderTable();
+  updateChart();
+}
+
+function removeRow() {
+  if (tableData.rows.length > 1) {
+    tableData.rows.pop();
+    renderTable();
+    updateChart();
+  }
+}
+
+function removeCol() {
+  if (tableData.headers.length > 2) {
+    tableData.headers.pop();
+    tableData.rows.forEach(r => r.pop());
+    renderTable();
+    updateChart();
+  }
+}
+
+// ============ CSV Parse ============
+function parseCSV() {
+  const raw = document.getElementById('csvInput').value.trim();
+  if (!raw) return;
+  const lines = raw.split('\n').map(l => l.split(/[\t,]/).map(c => c.trim()));
+  if (lines.length < 2) return;
+  tableData.headers = lines[0];
+  tableData.rows = lines.slice(1).filter(l => l.length > 0 && l.some(c => c !== ''));
+  renderTable();
+  updateChart();
+  switchDataTab('table');
+}
+
+function loadSampleData() {
+  tableData = {
+    headers: ['季度', '销售额', '利润', '成本'],
+    rows: [
+      ['Q1', '320', '120', '200'],
+      ['Q2', '450', '180', '270'],
+      ['Q3', '380', '140', '240'],
+      ['Q4', '520', '220', '300'],
+    ]
+  };
+  renderTable();
+  updateChart();
+}
+
+// ============ Chart Type ============
+function setChartType(type) {
+  currentType = type;
+  document.querySelectorAll('.chart-type-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.type === type);
+  });
+  updateChart();
+}
+
+// ============ Theme ============
+function setTheme(theme) {
+  currentTheme = theme;
+  document.querySelectorAll('.theme-dot').forEach(d => {
+    d.classList.toggle('active', d.dataset.theme === theme);
+  });
+  document.getElementById('themeName').textContent = themes[theme].name;
+
+  // dark mode body
+  if (theme === 'dark') {
+    document.body.classList.add('dark-mode');
+  } else {
+    document.body.classList.remove('dark-mode');
+  }
+  updateChart();
+}
+
+// ============ Resize ============
+function resizeChart() {
+  const w = parseInt(document.getElementById('chartWidth').value) || 800;
+  const h = parseInt(document.getElementById('chartHeight').value) || 500;
+  const card = document.getElementById('chartCard');
+  card.style.maxWidth = w + 'px';
+  updateChart();
+}
+
+// ============ Update Chart ============
+function updateChart() {
+  const canvas = document.getElementById('chartCanvas');
+  const ctx = canvas.getContext('2d');
+
+  if (chartInstance) {
+    chartInstance.destroy();
+    chartInstance = null;
+  }
+
+  document.getElementById('fontSizeVal').textContent = document.getElementById('fontSize').value;
+
+  const theme = themes[currentTheme];
+  const fontSize = parseInt(document.getElementById('fontSize').value);
+  const title = document.getElementById('chartTitle').value;
+  const xLabel = document.getElementById('xAxisLabel').value;
+  const yLabel = document.getElementById('yAxisLabel').value;
+  const legendPos = document.getElementById('legendPos').value;
+  const showValues = isToggleActive('toggleValues');
+  const showGrid = isToggleActive('toggleGrid');
+  const smooth = isToggleActive('toggleSmooth');
+  const fill = isToggleActive('toggleFill');
+
+  // Build data from table
+  const labels = tableData.rows.map(r => r[0]);
+  const seriesNames = tableData.headers.slice(1);
+  const isPieType = ['pie', 'doughnut'].includes(currentType);
+
+  let type = currentType;
+  if (type === 'area') type = 'line';
+  if (type === 'horizontalBar') type = 'bar';
+
+  let datasets;
+  if (isPieType) {
+    // For pie/doughnut: use first data series only, colors per slice
+    const data = tableData.rows.map(r => parseFloat(r[1]) || 0);
+    datasets = [{
+      data: data,
+      backgroundColor: labels.map((_, i) => theme.colors[i % theme.colors.length]),
+      borderColor: labels.map((_, i) => theme.colors[i % theme.colors.length]),
+      borderWidth: 2,
+      hoverOffset: 8
+    }];
+  } else {
+    datasets = seriesNames.map((name, si) => {
+      const color = theme.colors[si % theme.colors.length];
+      const base = {
+        label: name,
+        data: tableData.rows.map(r => parseFloat(r[si + 1]) || 0),
+        backgroundColor: fill ? theme.bg : (type === 'bar' ? color : theme.bg),
+        borderColor: color,
+        borderWidth: type === 'bar' ? 0 : 2.5,
+        pointBackgroundColor: color,
+        pointRadius: type === 'line' ? 4 : 3,
+        pointHoverRadius: 6,
+        tension: smooth ? 0.4 : 0,
+        fill: fill || type === 'area' || currentType === 'area',
+      };
+      if (type === 'bar') {
+        base.backgroundColor = color;
+        base.borderRadius = 6;
+        base.borderSkipped = false;
+        base.maxBarThickness = 50;
+      }
+      if (currentType === 'area') {
+        base.fill = true;
+        base.backgroundColor = theme.bg;
+        base.borderWidth = 2.5;
+      }
+      return base;
+    });
+  }
+
+  const isRadar = currentType === 'radar';
+  const isHorizontal = currentType === 'horizontalBar';
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: true,
+    indexAxis: isHorizontal ? 'y' : 'x',
+    animation: { duration: 600, easing: 'easeOutQuart' },
+    plugins: {
+      title: {
+        display: !!title,
+        text: title,
+        font: { size: fontSize + 4, weight: 'bold', family: 'Noto Sans SC' },
+        color: currentTheme === 'dark' ? '#cdd6f4' : '#1e293b',
+        padding: { bottom: 16 }
+      },
+      legend: {
+        display: legendPos !== 'none',
+        position: legendPos === 'none' ? 'top' : legendPos,
+        labels: {
+          font: { size: fontSize - 2, family: 'Noto Sans SC' },
+          color: currentTheme === 'dark' ? '#a6adc8' : '#64748b',
+          usePointStyle: true,
+          padding: 16
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        titleFont: { size: fontSize, family: 'Noto Sans SC' },
+        bodyFont: { size: fontSize - 1, family: 'Noto Sans SC' },
+        padding: 12,
+        cornerRadius: 8,
+        displayColors: true
+      },
+      datalabels: undefined
+    },
+    scales: (isPieType || isRadar) ? (isRadar ? {
+      r: {
+        grid: { display: showGrid, color: 'rgba(148,163,184,0.2)' },
+        angleLines: { display: showGrid, color: 'rgba(148,163,184,0.2)' },
+        pointLabels: { font: { size: fontSize - 2, family: 'Noto Sans SC' }, color: currentTheme === 'dark' ? '#a6adc8' : '#64748b' },
+        ticks: { display: false, backdropColor: 'transparent' }
+      }
+    } : {}) : {
+      x: {
+        title: { display: !!xLabel, text: xLabel, font: { size: fontSize - 1, family: 'Noto Sans SC' }, color: currentTheme === 'dark' ? '#a6adc8' : '#64748b' },
+        grid: { display: showGrid, color: 'rgba(148,163,184,0.15)' },
+        ticks: { font: { size: fontSize - 2, family: 'Noto Sans SC' }, color: currentTheme === 'dark' ? '#a6adc8' : '#94a3b8' },
+        border: { color: 'rgba(148,163,184,0.3)' }
+      },
+      y: {
+        title: { display: !!yLabel, text: yLabel, font: { size: fontSize - 1, family: 'Noto Sans SC' }, color: currentTheme === 'dark' ? '#a6adc8' : '#64748b' },
+        grid: { display: showGrid, color: 'rgba(148,163,184,0.15)' },
+        ticks: { font: { size: fontSize - 2, family: 'Noto Sans SC' }, color: currentTheme === 'dark' ? '#a6adc8' : '#94a3b8' },
+        border: { color: 'rgba(148,163,184,0.3)' },
+        beginAtZero: true
+      }
+    }
+  };
+
+  // Custom plugin: show values on bars/points
+  const dataLabelPlugin = {
+    id: 'customDataLabels',
+    afterDatasetsDraw(chart) {
+      if (!showValues) return;
+      const { ctx } = chart;
+      chart.data.datasets.forEach((dataset, i) => {
+        const meta = chart.getDatasetMeta(i);
+        meta.data.forEach((element, index) => {
+          const value = dataset.data[index];
+          if (value === undefined || value === null) return;
+          ctx.save();
+          ctx.font = `${fontSize - 3}px Noto Sans SC`;
+          ctx.fillStyle = currentTheme === 'dark' ? '#cdd6f4' : '#475569';
+          ctx.textAlign = 'center';
+          if (isPieType) {
+            const { x, y } = element.tooltipPosition();
+            ctx.fillText(value, x, y);
+          } else {
+            ctx.fillText(value, element.x, element.y - 10);
+          }
+          ctx.restore();
+        });
+      });
+    }
+  };
+
+  chartInstance = new Chart(ctx, {
+    type: type,
+    data: { labels, datasets },
+    options: options,
+    plugins: [dataLabelPlugin]
+  });
+}
+
+// ============ Export PNG ============
+function exportPNG() {
+  if (!chartInstance) return;
+  const link = document.createElement('a');
+  // Create high-res canvas
+  const scale = 2;
+  const w = parseInt(document.getElementById('chartWidth').value) || 800;
+  const h = parseInt(document.getElementById('chartHeight').value) || 500;
+  const offscreen = document.createElement('canvas');
+  offscreen.width = w * scale;
+  offscreen.height = h * scale;
+  const octx = offscreen.getContext('2d');
+  octx.scale(scale, scale);
+  // white background
+  octx.fillStyle = '#ffffff';
+  octx.fillRect(0, 0, w, h);
+
+  // Temporarily resize
+  const canvas = document.getElementById('chartCanvas');
+  const origW = canvas.style.width;
+  const origH = canvas.style.height;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  chartInstance.resize(w, h);
+
+  // Need to wait for resize to take effect
+  setTimeout(() => {
+    octx.drawImage(canvas, 0, 0, w, h);
+    link.download = 'quickchart_' + Date.now() + '.png';
+    link.href = offscreen.toDataURL('image/png');
+    link.click();
+    // restore
+    canvas.style.width = origW;
+    canvas.style.height = origH;
+    chartInstance.resize();
+  }, 200);
+}
+
+// ============ Export SVG (via canvas serialization) ============
+function exportSVG() {
+  if (!chartInstance) return;
+  const canvas = document.getElementById('chartCanvas');
+  const w = canvas.width;
+  const h = canvas.height;
+  const dataUrl = canvas.toDataURL('image/png');
+
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <rect width="100%" height="100%" fill="white"/>
+  <image width="${w}" height="${h}" xlink:href="${dataUrl}"/>
+</svg>`;
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const link = document.createElement('a');
+  link.download = 'quickchart_' + Date.now() + '.svg';
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+// ============ Reset ============
+function resetAll() {
+  tableData = {
+    headers: ['类别', '系列1', '系列2'],
+    rows: [
+      ['一月', '120', '80'],
+      ['二月', '150', '90'],
+      ['三月', '180', '120'],
+      ['四月', '130', '100'],
+      ['五月', '200', '150'],
+    ]
+  };
+  document.getElementById('chartTitle').value = '数据图表';
+  document.getElementById('xAxisLabel').value = '';
+  document.getElementById('yAxisLabel').value = '';
+  document.getElementById('legendPos').value = 'top';
+  document.getElementById('fontSize').value = '14';
+  document.getElementById('toggleValues').classList.remove('active');
+  document.getElementById('toggleGrid').classList.add('active');
+  document.getElementById('toggleSmooth').classList.add('active');
+  document.getElementById('toggleFill').classList.remove('active');
+  setChartType('bar');
+  setTheme('blue');
+  renderTable();
+  updateChart();
+}
+
+// ============ Init ============
+window.addEventListener('DOMContentLoaded', () => {
+  renderTable();
+  updateChart();
+});
+</script>
+</body>
+</html>
